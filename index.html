@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CronoMatriz — Priorizador Eisenhower & Bloqueo Horario</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">⏱️</div>
+      <div>
+        <h1>CronoMatriz</h1>
+        <p class="subtitle">Matriz de Eisenhower + Time-Blocking + Pomodoro</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button id="btn-demo" class="btn btn-secondary" type="button">
+        ✨ Cargar Día Demo (10 tareas)
+      </button>
+      <button id="btn-export-csv" class="btn btn-outline" type="button">
+        📊 Exportar CSV
+      </button>
+      <button id="btn-export-json" class="btn btn-outline" type="button">
+        📦 Exportar JSON
+      </button>
+      <button id="btn-clear-all" class="btn btn-danger-outline" type="button" title="Eliminar todas las tareas">
+        🗑️ Limpiar Todo
+      </button>
+    </div>
+  </header>
+
+  <main class="dashboard-grid">
+    <!-- COLUMNA IZQUIERDA: FORMULARIO + MATRIZ EISENHOWER -->
+    <section class="left-panel">
+      <!-- Formulario de Creación / Edición -->
+      <article class="card task-form-card">
+        <h2 id="form-heading">Nueva Tarea</h2>
+        <form id="task-form" autocomplete="off">
+          <input type="hidden" id="task-id" />
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="task-title">Título de la tarea *</label>
+              <input
+                type="text"
+                id="task-title"
+                placeholder="Ej. Entregar informe de arquitectura..."
+                required
+                maxlength="90"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="task-quadrant">Cuadrante *</label>
+              <select id="task-quadrant" required>
+                <option value="Q1">Q1: Urgente e Importante</option>
+                <option value="Q2">Q2: No Urgente e Importante</option>
+                <option value="Q3">Q3: Urgente y No Importante</option>
+                <option value="Q4">Q4: Ni Urgente ni Importante</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="task-duration">Duración estimada</label>
+              <select id="task-duration">
+                <option value="15">15 min</option>
+                <option value="30" selected>30 min</option>
+                <option value="45">45 min</option>
+                <option value="60">60 min (1h)</option>
+                <option value="90">90 min (1.5h)</option>
+                <option value="120">120 min (2h)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="task-time">Hora asignada (opcional)</label>
+              <select id="task-time">
+                <option value="">Sin agendar</option>
+              </select>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" id="btn-submit-task" class="btn btn-primary">
+                + Agregar Tarea
+              </button>
+              <button type="button" id="btn-cancel-edit" class="btn btn-ghost hidden">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </form>
+      </article>
+
+      <!-- Matriz Eisenhower 2x2 -->
+      <section class="eisenhower-matrix" aria-label="Matriz de Eisenhower">
+        <div class="quadrant q1" data-quadrant="Q1">
+          <header class="quadrant-header">
+            <div>
+              <span class="badge badge-q1">Q1 • HACER AHORA</span>
+              <h3>Urgente e Importante</h3>
+            </div>
+            <span class="quadrant-total" id="total-Q1">0 min</span>
+          </header>
+          <div class="task-list" id="list-Q1" data-quadrant="Q1"></div>
+        </div>
+
+        <div class="quadrant q2" data-quadrant="Q2">
+          <header class="quadrant-header">
+            <div>
+              <span class="badge badge-q2">Q2 • PLANIFICAR</span>
+              <h3>No Urgente e Importante</h3>
+            </div>
+            <span class="quadrant-total" id="total-Q2">0 min</span>
+          </header>
+          <div class="task-list" id="list-Q2" data-quadrant="Q2"></div>
+        </div>
+
+        <div class="quadrant q3" data-quadrant="Q3">
+          <header class="quadrant-header">
+            <div>
+              <span class="badge badge-q3">Q3 • DELEGAR</span>
+              <h3>Urgente y No Importante</h3>
+            </div>
+            <span class="quadrant-total" id="total-Q3">0 min</span>
+          </header>
+          <div class="task-list" id="list-Q3" data-quadrant="Q3"></div>
+        </div>
+
+        <div class="quadrant q4" data-quadrant="Q4">
+          <header class="quadrant-header">
+            <div>
+              <span class="badge badge-q4">Q4 • ELIMINAR</span>
+              <h3>Ni Urgente ni Importante</h3>
+            </div>
+            <span class="quadrant-total" id="total-Q4">0 min</span>
+          </header>
+          <div class="task-list" id="list-Q4" data-quadrant="Q4"></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- COLUMNA CENTRAL: AGENDA DIARIA DE BLOQUEO HORARIO -->
+    <section class="center-panel card">
+      <header class="panel-header">
+        <div>
+          <h2>Agenda Diaria (08:00 – 21:00)</h2>
+          <p class="muted-text">Arrastra tareas aquí o usa el selector horario</p>
+        </div>
+        <span class="capacity-pill" id="capacity-badge">0% ocupado</span>
+      </header>
+
+      <!-- Métricas de Capacidad -->
+      <div class="metrics-bar">
+        <div class="metric-box">
+          <span class="metric-label">Planificadas</span>
+          <strong id="metric-planned">0.0 h</strong>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Libres (Base 13h)</span>
+          <strong id="metric-free">13.0 h</strong>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Total Tareas</span>
+          <strong id="metric-count">0</strong>
+        </div>
+      </div>
+
+      <!-- Alertas dinámicas de traslape o sobrecarga -->
+      <div id="schedule-alerts" class="alerts-container" role="alert"></div>
+
+      <!-- Franjas Horarias -->
+      <div class="timeline-container" id="timeline-slots"></div>
+    </section>
+
+    <!-- COLUMNA DERECHA: POMODORO + GRÁFICO CANVAS -->
+    <aside class="right-panel">
+      <!-- Temporizador Pomodoro -->
+      <article class="card pomodoro-card">
+        <header class="panel-header">
+          <h2>Temporizador Pomodoro</h2>
+          <span class="pomodoro-counter" id="pomodoro-count" title="Pomodoros completados hoy">
+            🍅 0
+          </span>
+        </header>
+
+        <div class="focus-task-selector">
+          <label for="focus-task-select">Tarea en Foco:</label>
+          <select id="focus-task-select">
+            <option value="">-- Ninguna tarea seleccionada --</option>
+          </select>
+        </div>
+
+        <div class="pomodoro-modes" role="tablist">
+          <button type="button" class="mode-btn active" data-mode="focus">Enfoque (25m)</button>
+          <button type="button" class="mode-btn" data-mode="short">Descanso (5m)</button>
+          <button type="button" class="mode-btn" data-mode="long">Largo (15m)</button>
+        </div>
+
+        <div class="timer-display-wrapper">
+          <div class="timer-display" id="timer-display">25:00</div>
+          <div class="timer-status" id="timer-status">Listo para comenzar</div>
+        </div>
+
+        <div class="timer-controls">
+          <button type="button" id="btn-timer-start" class="btn btn-primary">▶ Iniciar</button>
+          <button type="button" id="btn-timer-pause" class="btn btn-secondary" disabled>⏸ Pausar</button>
+          <button type="button" id="btn-timer-reset" class="btn btn-outline">↺ Reiniciar</button>
+        </div>
+      </article>
+
+      <!-- Gráfico de Balance en Canvas -->
+      <article class="card chart-card">
+        <header class="panel-header">
+          <div>
+            <h2>Balance por Cuadrante</h2>
+            <p class="muted-text">Distribución de tiempo invertido</p>
+          </div>
+        </header>
+        <div class="canvas-wrapper">
+          <canvas id="balance-canvas" width="340" height="250"></canvas>
+        </div>
+        <div class="chart-legend" id="chart-legend"></div>
+      </article>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
